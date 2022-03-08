@@ -3,9 +3,26 @@
 <head>
     <meta charset="UTF-8">
     <title>Bouncy Balls</title>
+    
+    <style>
+        
+        body {
+            user-select: none;
+            -moz-user-select: none;
+            -webkit-user-select: none;
+            -ms-user-select: none;
+        }
+        
+        html, body {
+          overflow-y: hidden;
+        }
+        
+    </style>
+    
 </head>
 <body>
 <script src='p5.min.js'></script>
+<script src="https://unpkg.com/p5.js-svg@1.3.1"></script>
 <script src="quadtree.min.js"></script>
 <script src='bouncyBalls.js'></script>
 </body>
