@@ -292,11 +292,11 @@ function onDocumentKeyUp(event){
 
 var mouseDown = false;
 
-document.body.onmousedown = function() { 
+function touchStarted() { 
     mouseDown = true;
 }
 
-document.body.onmouseup = function() { 
+function touchEnded(){ //document.body.onmouseup = function()
     mouseDown = false;
 }
 
