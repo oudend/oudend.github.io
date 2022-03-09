@@ -4,11 +4,20 @@ function uuidv4() {
   );
 }
 
+class Vector
+{
+    constructor(x, y)
+    {
+        this.x = x;
+        this.y = y;
+    }
+}
+
 class Ball
 {
     constructor(x, y, velocity, radius, color)
     {
-        this.position = createVector(x, y);
+        this.position = new Vector(x, y);
         
         this.radius = radius;
         
@@ -23,25 +32,32 @@ class Ball
         return Math.hypot(this.position.x - x, this.position.y - y) <= this.radius/2 + r;
     }
     
-    move()
+    move(delta)
     {
-        this.position.x += this.velocity.x;
-        this.position.y += this.velocity.y;
+        this.position.x += this.velocity.x * delta;
+        this.position.y += this.velocity.y * delta;
     }
     
-    render()
+    render(ctx)
     {
-        fill(this.color);
-        circle(this.position.x, this.position.y, this.radius);
+        //fill(this.color);
+        //circle(this.position.x, this.position.y, this.radius);
+        
+        ctx.beginPath();
+        ctx.arc(this.position.x, this.position.y, this.radius/2, 0, 2 * Math.PI);
+        ctx.fillStyle = `rgba(${this.color[0]},${this.color[1]},${this.color[2]},1)`;
+        ctx.fill();
     }
 }
 
 class bouncyBallHandler
 {
-    constructor(width, height)
+    constructor(width, height, ctx, frameRetrieve=0)
     {
         this.width = width;
         this.height = height;
+        
+        this.ctx = ctx;
         
         this.balls = [];
         
@@ -51,10 +67,20 @@ class bouncyBallHandler
         	width: this.width,
         	height: this.height,
         });
+        
+        this.frame = 0;
+        this.frameRetrieve = frameRetrieve;
+        
+        this.firstFrame = true;
+        
+        this.candidates = [];
+        
+        this.newBall = false;
     } 
     
     addBall(ball)
     {
+        this.newBall = true;
         this.balls.push(ball);
     }
     
@@ -129,6 +155,8 @@ class bouncyBallHandler
     handleCollision(ball, candidates)
     {
         
+        //if(candidates.length<=1) console.log(candidates)
+        
         for(let candidateIndex=0;candidateIndex<candidates.length;candidateIndex++) {
 
             var candidate = candidates[candidateIndex];
@@ -152,19 +180,21 @@ class bouncyBallHandler
         
     }
     
-    update()
+    update(delta, overrideUpdate)
     {
+        this.frameRetrieve = delta*100
+        
         this.quadtree.clear();
         
         for(let ballIndex=0;ballIndex<this.balls.length;ballIndex++)
         {
             let ball = this.balls[ballIndex];
             
-            ball.move();
+            ball.move(delta);
             
             ball.color = hsl2rgb((ball.position.x+ball.position.y)/2, 1, 0.5);
             
-            ball.render();
+            ball.render(this.ctx);
             
             this.updateQuadtreePosition(ballIndex);
         }
@@ -173,9 +203,19 @@ class bouncyBallHandler
         {
             let ball = this.balls[ballIndex];
             
-            let candidates = this.getQuadtreeCandidates(ballIndex);
+            if((this.frame >= this.frameRetrieve || this.firstFrame === true || this.newBall === true) && delta>0.08)//  
+            {
+                this.candidates[ballIndex] = this.getQuadtreeCandidates(ballIndex);
+                
+                this.frame = 0;
+            } else 
+            {
+                this.candidates[ballIndex] = this.getQuadtreeCandidates(ballIndex);
+            }
             
-            this.handleCollision(ball, candidates);
+            //console.log(typeof this.candidates[ballIndex], this.newBall);
+            //f
+            this.handleCollision(ball, this.candidates[ballIndex]);
             
             if (ball.radius + ball.position.x > this.width)
                 ball.velocity.x = 0 - ball.velocity.x;
@@ -189,6 +229,13 @@ class bouncyBallHandler
             if (ball.position.y - ball.radius < 0)
                 ball.velocity.y = 0 - ball.velocity.y;
         }
+        
+        if(this.firstFrame || this.newBall) console.log("?", this.frameRetrieve)
+        
+        this.frame++;
+        
+        this.firstFrame = false;
+        this.newBall = false;
     }
 }
 
@@ -199,41 +246,43 @@ function hsl2rgb(h,s,l)
    return [f(0)*255,f(8)*255,f(4)*255];
 }
 
-function windowResized(){
-  width=windowWidth//screen.width-10;
-  height=windowHeight//screen.height-10;
-  resizeCanvas(width, height);
-}
-
-function setup() {
-  width=windowWidth//screen.width-10;
-  height=windowHeight//screen.height-10;
+//function setup() {
+  //width=windowWidth//screen.width-10;
+  //height=windowHeight//screen.height-10;
     
-  var cnv = createCanvas(width, height);
-  var centerX = (windowWidth - width) / 2;
-  var centerY = (windowHeight - height) / 2;
-  cnv.position(centerX, centerY);
-  cnv.style('display', 'block');
+  //var cnv = createCanvas(width, height);
+  //cnv.position(0, 0);
+  //cnv.style('display', 'block');
   
-  spawnSpeed = getItem('spawnSpeed') ?? 2;
-  spawnAmount = getItem('spawnAmount') ?? 1;
+  //spawnSpeed =  getItem('spawnSpeed') ?? 2;
+  //spawnAmount = getItem('spawnAmount') ?? 1;
   
-  ballHandler = new bouncyBallHandler(width, height);
-  
-  noStroke();
-}
+  //ballHandler = new bouncyBallHandler(width, height);
+//}
 
 function getRandomArbitrary(min, max) {
   return Math.random() * (max - min) + min;
+}
+
+function randomVector()
+{
+    rangrad = 2*Math.PI*Math.random(); 
+    
+    return new Vector(Math.cos(rangrad), Math.sin(rangrad));
 }
 
 function spawnBallAtCursor(amount=1)
 {
     for(amountX=0;amountX<amount;amountX++)
     {
-        let radius = getRandomArbitrary(4, 7);
+        let radius = getRandomArbitrary(2, 6);
+        
+        let velocity = randomVector();
+        
+        velocity.x *= spawnSpeed;
+        velocity.y *= spawnSpeed;
            
-        ball = new Ball(mouseX, mouseY, p5.Vector.random2D().mult(spawnSpeed), radius, hsl2rgb((mouseX+mouseY)/2, 1, 0.5));
+        ball = new Ball(mouseX, mouseY, velocity, radius, hsl2rgb((mouseX+mouseY)/2, 1, 0.5));
           
         ballHandler.addBall(ball);
     }
@@ -246,7 +295,7 @@ function onDocumentKeyDown(event){
     
     if(keyCode==82)
     {
-        ballHandler = new bouncyBallHandler(width, height);
+        ballHandler = new bouncyBallHandler(canvas.width, canvas.height, ctx, 5);
     }
     
     if(keyCode==38) 
@@ -264,7 +313,7 @@ function onDocumentKeyDown(event){
             spawnSpeed=Math.round((spawnSpeed+0.1)*10)/10;
         } else 
         {
-            spawnSpeed=Math.min(20, spawnSpeed+1);
+            spawnSpeed=Math.min(100, spawnSpeed+1);
         }
     }
     if(keyCode==37) 
@@ -284,35 +333,83 @@ function onDocumentKeyUp(event){
     
     if(keyCode==82) bouncyBalls=[];
     
-    if(keyCode==38) storeItem('spawnAmount', spawnAmount);
-    if(keyCode==40) storeItem('spawnAmount', spawnAmount);
-    if(keyCode==39) storeItem('spawnSpeed', spawnSpeed);
-    if(keyCode==37) storeItem('spawnSpeed', spawnSpeed);
+    if(keyCode==38 || keyCode==40) window.localStorage.setItem('spawnAmount', spawnAmount); //storeItem('spawnAmount', spawnAmount);
+
+    if(keyCode==39 || keyCode==37) window.localStorage.setItem('spawnSpeed', spawnSpeed); //storeItem('spawnSpeed', spawnSpeed);
 }
 
 var mouseDown = false;
 
-function touchStarted() { 
+document.body.onmousedown = function(){ 
     mouseDown = true;
 }
 
-function touchEnded(){ //document.body.onmouseup = function()
+document.body.onmouseup = function(){ //document.body.onmouseup = function()
     mouseDown = false;
 }
 
+onmousemove = function(e){
+    mouseX = e.clientX
+    mouseY = e.clientY
+}
+
+var canvas = document.getElementById('canvas');
+
+canvas.offscreenCanvas = document.createElement('canvas');
+canvas.offscreenCanvas.width = canvas.width;
+canvas.offscreenCanvas.height = canvas.height;
+
+ctx2 = canvas.offscreenCanvas.getContext('2d');
+
+console.log(ctx2)
+
+canvas.height = window.innerHeight; canvas.width = window.innerWidth;
+var ctx = canvas.getContext('2d');
+
+ballHandler = new bouncyBallHandler(canvas.width, canvas.height, ctx, 1);
+
+var mouseX = 0;
+var mouseY = 0;
+
+var spawnSpeed = window.localStorage.getItem('spawnSpeed') ?? 20;
+var spawnAmount = window.localStorage.getItem('spawnAmount') ?? 1;
+
+ctx.font = "15px Arial";
+
+var lastCalledTime = 1;
+var fps = 0;
+
+          
+ballHandler.addBall(new Ball(100, 100, new Vector(4, 4), 10, [255, 255, 255]));
+console.log(fps)
 function draw() {
-  background(100);
-  
-  ballHandler.update();
+    
+  if(!lastCalledTime) {
+     lastCalledTime = Date.now();
+     fps = 0;
+     return;
+  }
+  delta = (Date.now() - lastCalledTime)/1000;
+  lastCalledTime = Date.now();
+  fps = 1/delta;
+    
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
   
   if(mouseDown)
   {
       spawnBallAtCursor(spawnAmount);
   }
   
-  fill('black')
-  text("FPS: " + frameRate().toFixed(2), 10, height - 10);
-  text("BALLS: " + ballHandler.balls.length, 110, height - 10);
-  text("SPEED: " + spawnSpeed, 210, height - 10);
-  text("BPC: " + spawnAmount, 310, height - 10);
+  ballHandler.update(Math.min(2, delta), false);
+  
+  ctx.fillStyle = `black`;
+  ctx.fillText("FPS: " + fps.toFixed(2), 10, canvas.height-10);
+  ctx.fillText("BALLS: " + ballHandler.balls.length, 110, canvas.height-10);
+  ctx.fillText("SPEED: " + spawnSpeed, 210, canvas.height-10);
+  ctx.fillText("BPC: " + spawnAmount, 310, canvas.height-10);
+  ctx.fillText("DELTA: " + delta, 410, canvas.height-10);
+  
+  requestAnimationFrame(draw);
 }
+
+draw();
